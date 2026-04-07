@@ -1,0 +1,49 @@
+services:
+  # Stage 1: Prepare BEIR datasets with embeddings
+  prepare-data:
+    build:
+      context: ../..
+      dockerfile: lucene/beir-benchmark/Dockerfile
+      target: embeddings
+      args:
+        BEIR_DATASETS: "${BEIR_DATASETS:-scifact nfcorpus fiqa}"
+    volumes:
+      - beir-data:/data/beir-prepared
+    entrypoint: ["echo", "Data preparation complete"]
+
+  # Stage 2: Run the BEIR benchmark
+  benchmark:
+    build:
+      context: ../..
+      dockerfile: lucene/beir-benchmark/Dockerfile
+    depends_on:
+      prepare-data:
+        condition: service_completed_successfully
+    volumes:
+      - beir-data:/data/beir-prepared
+      - ./results:/benchmark/results
+    environment:
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx4g -Xms2g}
+      - BEIR_DATA_DIR=/data/beir-prepared
+      - BEIR_DATASETS=${BEIR_DATASETS:-}
+      - BEIR_OUTPUT=/benchmark/results/results.tsv
+
+  # All-in-one: build and run in a single container (simpler)
+  all-in-one:
+    build:
+      context: ../..
+      dockerfile: lucene/beir-benchmark/Dockerfile
+      args:
+        BEIR_DATASETS: "${BEIR_DATASETS:-scifact nfcorpus fiqa}"
+    volumes:
+      - ./results:/benchmark/results
+    environment:
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx4g -Xms2g}
+      - BEIR_DATA_DIR=/data/beir-prepared
+      - BEIR_DATASETS=${BEIR_DATASETS:-}
+      - BEIR_OUTPUT=/benchmark/results/results.tsv
+    profiles:
+      - all-in-one
+
+volumes:
+  beir-data:
