@@ -1,0 +1,61 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id "java"
+}
+
+description = 'BEIR benchmark for Bayesian BM25 and hybrid search evaluation'
+
+dependencies {
+  moduleImplementation project(':lucene:core')
+  moduleImplementation project(':lucene:analysis:common')
+  moduleImplementation project(':lucene:queryparser')
+}
+
+def dataDirOption = buildOptions.addOption("dataDir", "Path to BEIR prepared data directory.", "/data/beir-prepared")
+def datasetsOption = buildOptions.addOption("datasets", "Comma-separated dataset names (default: auto-discover).", "")
+def topKOption = buildOptions.addOption("topK", "Number of results to retrieve per query.", "100")
+def outputOption = buildOptions.addOption("outputFile", "Path to output TSV file.", "")
+def heapSizeOption = buildOptions.addOption("maxHeapSize", "Heap size for the benchmark.", "4G")
+
+tasks.register("run", JavaExec, {
+  description = "Run the BEIR benchmark."
+  group = "Utility launchers"
+
+  mainClass = 'org.apache.lucene.benchmark.beir.BEIRBenchmark'
+  classpath sourceSets.main.runtimeClasspath
+
+  def argsList = ['--data-dir', dataDirOption.get()]
+
+  if (datasetsOption.get() != "") {
+    argsList.addAll(['--datasets', datasetsOption.get()])
+  }
+  argsList.addAll(['--top-k', topKOption.get()])
+  if (outputOption.get() != "") {
+    argsList.addAll(['--output', outputOption.get()])
+  }
+
+  args = argsList
+  maxHeapSize = heapSizeOption.get()
+
+  debugOptions {
+    enabled = false
+    port = 5005
+    suspend = true
+  }
+})

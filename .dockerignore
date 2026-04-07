@@ -1,0 +1,10 @@
+.git
+**/build/
+**/.gradle/
+**/work/
+**/results/
+**/*.class
+**/.idea/
+**/*.iml
+dev-docs/
+help/
