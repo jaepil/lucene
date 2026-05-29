@@ -303,6 +303,8 @@ API Changes
 
 * GITHUB#16101 Add DictionaryColumn for SORTED / SORTED_SET docvalues using experimental column api (Tim Brooks)
 
+* GITHUB#16104: Add public constructors and a public getSearchStrategy() to FloatVectorSimilarityQuery, ByteVectorSimilarityQuery and VectorSimilarityCollector that accept a KnnSearchStrategy. (Sasilekha R)
+
 New Features
 ---------------------
 
@@ -323,6 +325,9 @@ New Features
 
 * GITHUB#15794: Add DocValuesSkipper metadata for the maximum number of values
   on any document in a field. (Prithvi S)
+
+* GITHUB#16110: Add count() to BayesianScoreQuery.BayesianScoreWeight, delegating to
+  the inner weight. (Prithvi S)
 
 Improvements
 ---------------------
@@ -445,6 +450,8 @@ Optimizations
 
 * GITHUB#16126: Implement #intoBitSet and #docIDRunEnd in DocValuesWriter implementations. (Ignacio Vera)
 
+* GITHUB#16141: Optimize constant-score bulk scoring via intoBitSet batching. (Costin Leau)
+
 Bug Fixes
 ---------------------
 * GITHUB#15754: Fix HTMLStripCharFilter to prevent tags from incorrectly consuming subsequent
@@ -494,6 +501,8 @@ Bug Fixes
   logging with sub-millisecond precision to aid merge concurrency debugging. (Prithvi S)
 
 * GITHUB#15878: Fix LargeNumHitsTopDocsCollector not handling requested hit count correctly (Binlong Gao)
+
+* GITHUB#16046: Fix double-counting of underlying Automaton in CompiledAutomaton#ramBytesUsed. (Eugene Rizhkov)
 
 Other
 ---------------------
