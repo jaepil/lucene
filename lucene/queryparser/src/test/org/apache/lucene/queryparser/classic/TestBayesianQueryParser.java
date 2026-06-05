@@ -27,6 +27,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.function.FunctionScoreQuery;
+import org.apache.lucene.search.BayesianScoreEstimator;
 import org.apache.lucene.search.BayesianScoreQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -339,6 +340,59 @@ public class TestBayesianQueryParser extends LuceneTestCase {
         IllegalArgumentException.class, () -> parser.setBayesianScoreCalibration(1f, 1f, 1f));
     expectThrows(IllegalArgumentException.class, () -> parser.setFusionAlpha(-0.1f));
     expectThrows(IllegalArgumentException.class, () -> parser.setFusionAlpha(1.1f));
+  }
+
+  public void testCanUseLearnedCalibrationParameters() throws Exception {
+    BayesianQueryParser parser =
+        new BayesianQueryParser(
+            "body", new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false));
+    BayesianScoreEstimator.Parameters parameters =
+        new BayesianScoreEstimator.Parameters(0.4f, 1.7f, 0.02f);
+
+    parser.setBayesianScoreCalibration(parameters);
+    Query query = parser.parse("body:cat");
+
+    assertTrue(query instanceof BayesianScoreQuery);
+    BayesianScoreQuery bayesianQuery = (BayesianScoreQuery) query;
+    assertEquals(0.4f, bayesianQuery.getAlpha(), 0f);
+    assertEquals(1.7f, bayesianQuery.getBeta(), 0f);
+    assertEquals(0.02f, bayesianQuery.getBaseRate(), 0f);
+  }
+
+  public void testCanEstimateAndUseCalibrationParametersForDslQueries() throws Exception {
+    Directory dir = newDirectory();
+    RandomIndexWriter writer = new RandomIndexWriter(random(), dir);
+
+    for (String body : new String[] {"cat", "cat", "cat", "dog", "dog", "mouse"}) {
+      Document doc = new Document();
+      doc.add(new StringField("body", body, Field.Store.NO));
+      writer.addDocument(doc);
+    }
+
+    try (IndexReader reader = writer.getReader()) {
+      writer.close();
+      writer = null;
+      IndexSearcher searcher = newSearcher(reader);
+      BayesianQueryParser parser =
+          new BayesianQueryParser(
+              "body", new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false));
+
+      BayesianScoreEstimator.Parameters parameters =
+          parser.estimateBayesianScoreCalibration(searcher, "body", 6, 1, 7);
+      Query query = parser.parse("body:cat");
+
+      assertTrue(query instanceof BayesianScoreQuery);
+      BayesianScoreQuery bayesianQuery = (BayesianScoreQuery) query;
+      assertEquals(parameters.alpha(), bayesianQuery.getAlpha(), 0f);
+      assertEquals(parameters.beta(), bayesianQuery.getBeta(), 0f);
+      assertEquals(parameters.baseRate(), bayesianQuery.getBaseRate(), 0f);
+      assertTrue(searcher.search(query, 10).scoreDocs.length > 0);
+    } finally {
+      if (writer != null) {
+        writer.close();
+      }
+      dir.close();
+    }
   }
 
   private static void assertBayesianWrapped(

@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.queries.function.FunctionScoreQuery;
+import org.apache.lucene.search.BayesianScoreEstimator;
 import org.apache.lucene.search.BayesianScoreQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -66,6 +67,63 @@ public class BayesianQueryParser extends QueryParser {
    */
   public BayesianQueryParser(String f, Analyzer a) {
     super(f, a);
+  }
+
+  /**
+   * Sets sigmoid calibration parameters from an estimated parameter object.
+   *
+   * @param parameters estimated BayesianScoreQuery parameters
+   */
+  public void setBayesianScoreCalibration(BayesianScoreEstimator.Parameters parameters) {
+    Objects.requireNonNull(parameters, "parameters");
+    setBayesianScoreCalibration(parameters.alpha(), parameters.beta(), parameters.baseRate());
+  }
+
+  /**
+   * Estimates BayesianScoreQuery parameters from the parser's default field and installs them.
+   *
+   * @param searcher the index searcher to sample from
+   * @return estimated alpha, beta, and base rate
+   * @throws IOException if an I/O error occurs reading the index
+   */
+  public BayesianScoreEstimator.Parameters estimateBayesianScoreCalibration(IndexSearcher searcher)
+      throws IOException {
+    return estimateBayesianScoreCalibration(searcher, getField());
+  }
+
+  /**
+   * Estimates BayesianScoreQuery parameters from the given field and installs them.
+   *
+   * @param searcher the index searcher to sample from
+   * @param field the indexed text field to create pseudo-queries for
+   * @return estimated alpha, beta, and base rate
+   * @throws IOException if an I/O error occurs reading the index
+   */
+  public BayesianScoreEstimator.Parameters estimateBayesianScoreCalibration(
+      IndexSearcher searcher, String field) throws IOException {
+    BayesianScoreEstimator.Parameters parameters = BayesianScoreEstimator.estimate(searcher, field);
+    setBayesianScoreCalibration(parameters);
+    return parameters;
+  }
+
+  /**
+   * Estimates BayesianScoreQuery parameters from the given field and installs them.
+   *
+   * @param searcher the index searcher to sample from
+   * @param field the indexed text field to create pseudo-queries for
+   * @param nSamples number of pseudo-queries to sample
+   * @param tokensPerQuery number of indexed terms per pseudo-query
+   * @param seed random seed for reproducible sampling
+   * @return estimated alpha, beta, and base rate
+   * @throws IOException if an I/O error occurs reading the index
+   */
+  public BayesianScoreEstimator.Parameters estimateBayesianScoreCalibration(
+      IndexSearcher searcher, String field, int nSamples, int tokensPerQuery, long seed)
+      throws IOException {
+    BayesianScoreEstimator.Parameters parameters =
+        BayesianScoreEstimator.estimate(searcher, field, nSamples, tokensPerQuery, seed);
+    setBayesianScoreCalibration(parameters);
+    return parameters;
   }
 
   /**
