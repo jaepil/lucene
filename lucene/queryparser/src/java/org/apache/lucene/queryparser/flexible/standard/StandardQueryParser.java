@@ -404,6 +404,32 @@ public class StandardQueryParser extends QueryParserHelper
     return getQueryConfigHandler().get(ConfigurationKeys.POINTS_CONFIG_MAP);
   }
 
+  /**
+   * Sets the number of nearest documents collected by vector literals such as {@code vector:[1, 2,
+   * 3]}.
+   *
+   * @param defaultVectorTopK the default vector top-k value (must be at least 1)
+   * @lucene.experimental
+   */
+  public void setDefaultVectorTopK(int defaultVectorTopK) {
+    if (defaultVectorTopK < 1) {
+      throw new IllegalArgumentException(
+          "defaultVectorTopK must be at least 1, got " + defaultVectorTopK);
+    }
+    getQueryConfigHandler().set(ConfigurationKeys.DEFAULT_VECTOR_TOP_K, defaultVectorTopK);
+  }
+
+  /**
+   * Returns the number of nearest documents collected by vector literals such as {@code vector:[1,
+   * 2, 3]}.
+   *
+   * @lucene.experimental
+   */
+  public int getDefaultVectorTopK() {
+    Integer defaultVectorTopK = getQueryConfigHandler().get(ConfigurationKeys.DEFAULT_VECTOR_TOP_K);
+    return defaultVectorTopK != null ? defaultVectorTopK : 10;
+  }
+
   /** Set locale used by date range parsing. */
   @Override
   public void setLocale(Locale locale) {

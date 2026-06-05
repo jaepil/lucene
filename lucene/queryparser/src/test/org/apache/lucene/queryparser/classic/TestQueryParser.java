@@ -38,12 +38,14 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.SynonymQuery;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.analysis.MockAnalyzer;
 import org.apache.lucene.tests.analysis.MockBytesAnalyzer;
@@ -193,6 +195,36 @@ public class TestQueryParser extends QueryParserTestBase {
           }
         };
     assertEquals(qp.parse("a:[11.95 TO 12.95]"), qp.parse("12.45~1€"));
+  }
+
+  public void testVectorLiteral() throws Exception {
+    QueryParser qp = getParser(new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false));
+    qp.setDefaultVectorTopK(7);
+
+    Query query = qp.parse("vector:[1, 2.5, -3e-1]");
+    assertTrue(query instanceof KnnFloatVectorQuery);
+
+    KnnFloatVectorQuery vectorQuery = (KnnFloatVectorQuery) query;
+    assertEquals("vector", vectorQuery.getField());
+    assertEquals(7, vectorQuery.getK());
+    float[] target = vectorQuery.getTargetCopy();
+    assertEquals(3, target.length);
+    assertEquals(1f, target[0], 0f);
+    assertEquals(2.5f, target[1], 0f);
+    assertEquals(-0.3f, target[2], 0f);
+  }
+
+  public void testVectorLiteralDoesNotReplaceRangeSyntax() throws Exception {
+    QueryParser qp = getParser(new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false));
+    assertTrue(qp.parse("field:[1 TO 3]") instanceof TermRangeQuery);
+    assertTrue(qp.parse("field:{1 TO 3}") instanceof TermRangeQuery);
+  }
+
+  public void testInvalidVectorLiteral() throws Exception {
+    QueryParser qp = getParser(new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false));
+    expectThrows(ParseException.class, () -> qp.parse("vector:[1, , 2]"));
+    expectThrows(ParseException.class, () -> qp.parse("vector:[1, 2,]"));
+    expectThrows(ParseException.class, () -> qp.parse("vector:[1, abc, 2]"));
   }
 
   public void testFuzzyDistanceExtendability() throws ParseException {

@@ -76,6 +76,7 @@ import org.apache.lucene.queryparser.flexible.standard.nodes.intervalfn.Within;
 import org.apache.lucene.queryparser.flexible.standard.nodes.IntervalQueryNode;
 import org.apache.lucene.queryparser.flexible.standard.nodes.MinShouldMatchNode;
 import org.apache.lucene.queryparser.flexible.standard.nodes.RegexpQueryNode;
+import org.apache.lucene.queryparser.flexible.standard.nodes.VectorQueryNode;
 import org.apache.lucene.queryparser.charstream.CharStream;
 import org.apache.lucene.queryparser.charstream.FastCharStream;
 import org.apache.lucene.queryparser.flexible.standard.nodes.TermRangeQueryNode;
@@ -118,6 +119,37 @@ public class StandardSyntaxParser implements SyntaxParser {
 
   public static int parseInt(Token token) {
     return Integer.parseInt(token.image);
+  }
+
+  private static float[] parseVectorLiteral(ArrayList<Token> chunks) throws ParseException {
+    StringBuilder builder = new StringBuilder();
+    for (Token chunk : chunks) {
+      if (builder.length() > 0) {
+        builder.append(' ');
+      }
+      builder.append(chunk.image);
+    }
+    String literal = builder.toString();
+    String[] parts = literal.split(",", -1);
+    float[] vector = new float[parts.length];
+    for (int i = 0; i < parts.length; i++) {
+      String part = discardEscapeChar(parts[i]).toString().trim();
+      if (part.isEmpty()) {
+        throw new ParseException(
+            new MessageImpl(QueryParserMessages.INVALID_SYNTAX, "Vector literal contains an empty element: [" + literal + "]"));
+      }
+      try {
+        vector[i] = Float.parseFloat(part);
+      } catch (NumberFormatException e) {
+        throw new ParseException(
+            new MessageImpl(QueryParserMessages.INVALID_SYNTAX, "Invalid vector element '" + part + "' in [" + literal + "]"));
+      }
+      if (Float.isFinite(vector[i]) == false) {
+        throw new ParseException(
+            new MessageImpl(QueryParserMessages.INVALID_SYNTAX, "Vector element must be finite: '" + part + "'"));
+      }
+    }
+    return vector;
   }
 }
 PARSER_END(StandardSyntaxParser)
@@ -803,7 +835,10 @@ private QueryNode Term(CharSequence field) : {
      | (term = <TERM> | term = <NUMBER>)
        { q = new FieldQueryNode(field, discardEscapeChar(term.image), term.beginColumn, term.endColumn); }
        ( q = FuzzyOp(field, term, q) )?
-     | q = TermRangeExpr(field)
+     | LOOKAHEAD((<RANGEIN_START> | <RANGEEX_START>)
+         (<RANGE_GOOP> | <RANGE_QUOTED> | <RANGE_TO>) <RANGE_TO>)
+       q = TermRangeExpr(field)
+     | q = VectorLiteral(field)
      | q = QuotedTerm(field)
   )
   ( q = Boost(q) )?
@@ -833,6 +868,29 @@ private QueryNode QuotedTerm(CharSequence field) : {
   ( <TILDE> slop = <NUMBER> { q = new SlopQueryNode(q, parseInt(slop)); } )?
   {
     return q;
+  }
+}
+
+/**
+ * A vector literal expression.
+ *
+ * <pre>{@code
+ * VectorLiteral ::= '[' <RANGE_GOOP>+ ']'
+ * }</pre>
+ */
+private VectorQueryNode VectorLiteral(CharSequence field) : {
+  ArrayList<Token> chunks = new ArrayList<Token>();
+  Token start, end, chunk;
+}
+{
+  start = <RANGEIN_START>
+  chunk = <RANGE_GOOP> { chunks.add(chunk); }
+  (
+    chunk = <RANGE_GOOP> { chunks.add(chunk); }
+  )*
+  end = <RANGEIN_END>
+  {
+    return new VectorQueryNode(field, parseVectorLiteral(chunks), start.beginColumn, end.endColumn);
   }
 }
 

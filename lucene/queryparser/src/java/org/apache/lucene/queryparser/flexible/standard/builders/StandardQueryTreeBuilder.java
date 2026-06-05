@@ -38,6 +38,7 @@ import org.apache.lucene.queryparser.flexible.standard.nodes.PrefixWildcardQuery
 import org.apache.lucene.queryparser.flexible.standard.nodes.RegexpQueryNode;
 import org.apache.lucene.queryparser.flexible.standard.nodes.SynonymQueryNode;
 import org.apache.lucene.queryparser.flexible.standard.nodes.TermRangeQueryNode;
+import org.apache.lucene.queryparser.flexible.standard.nodes.VectorQueryNode;
 import org.apache.lucene.queryparser.flexible.standard.nodes.WildcardQueryNode;
 import org.apache.lucene.queryparser.flexible.standard.processors.StandardQueryNodeProcessorPipeline;
 import org.apache.lucene.search.Query;
@@ -66,6 +67,7 @@ public class StandardQueryTreeBuilder extends QueryTreeBuilder implements Standa
     setBuilder(MatchNoDocsQueryNode.class, new MatchNoDocsQueryNodeBuilder());
     setBuilder(PrefixWildcardQueryNode.class, new PrefixWildcardQueryNodeBuilder());
     setBuilder(TermRangeQueryNode.class, new TermRangeQueryNodeBuilder());
+    setBuilder(VectorQueryNode.class, new VectorQueryNodeBuilder());
     setBuilder(RegexpQueryNode.class, new RegexpQueryNodeBuilder());
     setBuilder(SlopQueryNode.class, new SlopQueryNodeBuilder());
     setBuilder(SynonymQueryNode.class, new SynonymQueryNodeBuilder());

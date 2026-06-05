@@ -52,6 +52,7 @@ public class StandardQueryNodeProcessorPipeline extends QueryNodeProcessorPipeli
     add(new MatchAllDocsQueryNodeProcessor());
     add(new OpenRangeQueryNodeProcessor());
     add(new PointQueryNodeProcessor());
+    add(new VectorQueryNodeProcessor());
     add(new PointRangeQueryNodeProcessor());
     add(new TermRangeQueryNodeProcessor());
     add(new AllowLeadingWildcardProcessor());

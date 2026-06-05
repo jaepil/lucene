@@ -180,6 +180,15 @@ public class StandardQueryConfigHandler extends QueryConfigHandler {
      */
     public static final ConfigurationKey<Map<String, PointsConfig>> POINTS_CONFIG_MAP =
         ConfigurationKey.newInstance();
+
+    /**
+     * Key used to set the default top-k value for vector literals.
+     *
+     * @see StandardQueryParser#setDefaultVectorTopK(int)
+     * @see StandardQueryParser#getDefaultVectorTopK()
+     */
+    public static final ConfigurationKey<Integer> DEFAULT_VECTOR_TOP_K =
+        ConfigurationKey.newInstance();
   }
 
   /** Boolean Operator: AND or OR */
@@ -204,6 +213,7 @@ public class StandardQueryConfigHandler extends QueryConfigHandler {
     set(ConfigurationKeys.FUZZY_CONFIG, new FuzzyConfig());
     set(ConfigurationKeys.LOCALE, Locale.getDefault());
     set(ConfigurationKeys.MULTI_TERM_REWRITE_METHOD, MultiTermQuery.CONSTANT_SCORE_BLENDED_REWRITE);
+    set(ConfigurationKeys.DEFAULT_VECTOR_TOP_K, 10);
     set(
         ConfigurationKeys.FIELD_DATE_RESOLUTION_MAP,
         new HashMap<CharSequence, DateTools.Resolution>());

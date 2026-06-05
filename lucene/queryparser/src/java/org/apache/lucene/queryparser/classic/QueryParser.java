@@ -418,6 +418,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
 
   public final Query Term(String field) throws ParseException {
     Token term, boost = null, fuzzySlop = null, goop1, goop2;
+    List<String> vectorChunks;
     boolean prefix = false;
     boolean wildcard = false;
     boolean fuzzy = false;
@@ -533,9 +534,9 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
           q = handleBareTokenQuery(field, term, fuzzySlop, prefix, wildcard, fuzzy, regexp);
           break;
         }
-      case RANGEIN_START:
-      case RANGEEX_START:
-        {
+      default:
+        jj_la1[25] = jj_gen;
+        if (jj_2_4(2147483647)) {
           switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
             case RANGEIN_START:
               {
@@ -643,71 +644,118 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
                   endOpen ? null : discardEscapeChar(goop2.image),
                   startInc,
                   endInc);
-          break;
-        }
-      case QUOTED:
-        {
-          term = jj_consume_token(QUOTED);
+        } else {
           switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
-            case CARAT:
-            case FUZZY_SLOP:
+            case RANGEIN_START:
               {
+                vectorChunks = VectorLiteral();
                 switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
                   case CARAT:
                     {
                       jj_consume_token(CARAT);
                       boost = jj_consume_token(NUMBER);
-                      switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
-                        case FUZZY_SLOP:
-                          {
-                            fuzzySlop = jj_consume_token(FUZZY_SLOP);
-                            fuzzy = true;
-                            break;
-                          }
-                        default:
-                          jj_la1[20] = jj_gen;
-                          ;
-                      }
                       break;
                     }
+                  default:
+                    jj_la1[20] = jj_gen;
+                    ;
+                }
+                q = handleVectorTerm(field, vectorChunks);
+                break;
+              }
+            case QUOTED:
+              {
+                term = jj_consume_token(QUOTED);
+                switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
+                  case CARAT:
                   case FUZZY_SLOP:
                     {
-                      fuzzySlop = jj_consume_token(FUZZY_SLOP);
-                      fuzzy = true;
                       switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
                         case CARAT:
                           {
                             jj_consume_token(CARAT);
                             boost = jj_consume_token(NUMBER);
+                            switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
+                              case FUZZY_SLOP:
+                                {
+                                  fuzzySlop = jj_consume_token(FUZZY_SLOP);
+                                  fuzzy = true;
+                                  break;
+                                }
+                              default:
+                                jj_la1[21] = jj_gen;
+                                ;
+                            }
+                            break;
+                          }
+                        case FUZZY_SLOP:
+                          {
+                            fuzzySlop = jj_consume_token(FUZZY_SLOP);
+                            fuzzy = true;
+                            switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
+                              case CARAT:
+                                {
+                                  jj_consume_token(CARAT);
+                                  boost = jj_consume_token(NUMBER);
+                                  break;
+                                }
+                              default:
+                                jj_la1[22] = jj_gen;
+                                ;
+                            }
                             break;
                           }
                         default:
-                          jj_la1[21] = jj_gen;
-                          ;
+                          jj_la1[23] = jj_gen;
+                          jj_consume_token(-1);
+                          throw new ParseException();
                       }
                       break;
                     }
                   default:
-                    jj_la1[22] = jj_gen;
-                    jj_consume_token(-1);
-                    throw new ParseException();
+                    jj_la1[24] = jj_gen;
+                    ;
                 }
+                q = handleQuotedTerm(field, term, fuzzySlop);
                 break;
               }
             default:
-              jj_la1[23] = jj_gen;
-              ;
+              jj_la1[26] = jj_gen;
+              jj_consume_token(-1);
+              throw new ParseException();
           }
-          q = handleQuotedTerm(field, term, fuzzySlop);
-          break;
         }
-      default:
-        jj_la1[24] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
     }
     {
       if ("" != null) return handleBoost(q, boost);
+    }
+    throw new Error("Missing return statement in function");
+  }
+
+  public final List<String> VectorLiteral() throws ParseException {
+    List<String> chunks = new ArrayList<String>();
+    Token chunk;
+    jj_consume_token(RANGEIN_START);
+    chunk = jj_consume_token(RANGE_GOOP);
+    chunks.add(chunk.image);
+    label_2:
+    while (true) {
+      switch ((jj_ntk == -1) ? jj_ntk_f() : jj_ntk) {
+        case RANGE_GOOP:
+          {
+            ;
+            break;
+          }
+        default:
+          jj_la1[27] = jj_gen;
+          break label_2;
+      }
+      chunk = jj_consume_token(RANGE_GOOP);
+      chunks.add(chunk.image);
+    }
+    jj_consume_token(RANGEIN_END);
+    {
+      if ("" != null) return chunks;
     }
     throw new Error("Missing return statement in function");
   }
@@ -727,7 +775,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
       jj_consume_token(-1);
       throw new ParseException();
     }
-    label_2:
+    label_3:
     while (true) {
       followingText = jj_consume_token(TERM);
       if (splitOnWhitespace) {
@@ -739,7 +787,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
       if (getToken(1).kind == TERM && allowedPostMultiTerm(getToken(2).kind)) {
         ;
       } else {
-        break label_2;
+        break label_3;
       }
     }
     if (splitOnWhitespace == false) {
@@ -788,17 +836,58 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     }
   }
 
-  private boolean jj_3R_MultiTerm_381_3_3() {
+  private boolean jj_2_4(int xla) {
+    jj_la = xla;
+    jj_lastpos = jj_scanpos = token;
+    try {
+      return (!jj_3_4());
+    } catch (LookaheadSuccess ls) {
+      return true;
+    } finally {
+      jj_save(3, xla);
+    }
+  }
+
+  private boolean jj_3R_MultiTerm_410_3_7() {
+    return false;
+  }
+
+  private boolean jj_3R_Clause_306_9_6() {
+    if (jj_scan_token(STAR)) return true;
+    if (jj_scan_token(COLON)) return true;
+    return false;
+  }
+
+  private boolean jj_3_4() {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(25)) {
+      jj_scanpos = xsp;
+      if (jj_scan_token(26)) return true;
+    }
+    xsp = jj_scanpos;
+    if (jj_scan_token(32)) {
+      jj_scanpos = xsp;
+      if (jj_scan_token(31)) {
+        jj_scanpos = xsp;
+        if (jj_scan_token(28)) return true;
+      }
+    }
+    if (jj_scan_token(RANGE_TO)) return true;
+    return false;
+  }
+
+  private boolean jj_3R_MultiTerm_402_3_4() {
     if (jj_scan_token(TERM)) return true;
     jj_lookingAhead = true;
     jj_semLA = getToken(1).kind == TERM && allowedPostMultiTerm(getToken(2).kind);
     jj_lookingAhead = false;
-    if (!jj_semLA || jj_3R_MultiTerm_389_3_6()) return true;
+    if (!jj_semLA || jj_3R_MultiTerm_410_3_7()) return true;
     Token xsp;
-    if (jj_3R_MultiTerm_391_5_7()) return true;
+    if (jj_3R_MultiTerm_412_5_8()) return true;
     while (true) {
       xsp = jj_scanpos;
-      if (jj_3R_MultiTerm_391_5_7()) {
+      if (jj_3R_MultiTerm_412_5_8()) {
         jj_scanpos = xsp;
         break;
       }
@@ -806,44 +895,34 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     return false;
   }
 
-  private boolean jj_3R_MultiTerm_389_3_6() {
-    return false;
-  }
-
-  private boolean jj_3R_Clause_306_9_5() {
-    if (jj_scan_token(STAR)) return true;
-    if (jj_scan_token(COLON)) return true;
-    return false;
-  }
-
-  private boolean jj_3R_Clause_305_7_4() {
+  private boolean jj_3R_Clause_305_7_5() {
     if (jj_scan_token(TERM)) return true;
     if (jj_scan_token(COLON)) return true;
     return false;
   }
 
   private boolean jj_3_2() {
-    if (jj_3R_MultiTerm_381_3_3()) return true;
-    return false;
-  }
-
-  private boolean jj_3_1() {
-    if (jj_3R_MultiTerm_381_3_3()) return true;
-    return false;
-  }
-
-  private boolean jj_3R_MultiTerm_391_5_7() {
-    if (jj_scan_token(TERM)) return true;
+    if (jj_3R_MultiTerm_402_3_4()) return true;
     return false;
   }
 
   private boolean jj_3_3() {
     Token xsp;
     xsp = jj_scanpos;
-    if (jj_3R_Clause_305_7_4()) {
+    if (jj_3R_Clause_305_7_5()) {
       jj_scanpos = xsp;
-      if (jj_3R_Clause_306_9_5()) return true;
+      if (jj_3R_Clause_306_9_6()) return true;
     }
+    return false;
+  }
+
+  private boolean jj_3R_MultiTerm_412_5_8() {
+    if (jj_scan_token(TERM)) return true;
+    return false;
+  }
+
+  private boolean jj_3_1() {
+    if (jj_3R_MultiTerm_402_3_4()) return true;
     return false;
   }
 
@@ -865,7 +944,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
 
   private boolean jj_semLA;
   private int jj_gen;
-  private final int[] jj_la1 = new int[25];
+  private final int[] jj_la1 = new int[28];
   private static int[] jj_la1_0;
   private static int[] jj_la1_1;
 
@@ -897,11 +976,14 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
           0x90000000,
           0x60000000,
           0x40000,
+          0x40000,
           0x200000,
           0x40000,
           0x240000,
           0x240000,
-          0xfda2000,
+          0x9d22000,
+          0x2080000,
+          0x0,
         };
   }
 
@@ -909,11 +991,11 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     jj_la1_1 =
         new int[] {
           0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x1,
-          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+          0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1,
         };
   }
 
-  private final JJCalls[] jj_2_rtns = new JJCalls[3];
+  private final JJCalls[] jj_2_rtns = new JJCalls[4];
   private boolean jj_rescan = false;
   private int jj_gc = 0;
 
@@ -923,7 +1005,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 25; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -935,7 +1017,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     jj_ntk = -1;
     jj_lookingAhead = false;
     jj_gen = 0;
-    for (int i = 0; i < 25; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -945,7 +1027,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 25; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -955,7 +1037,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 25; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 28; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -1094,7 +1176,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 25; i++) {
+    for (int i = 0; i < 28; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1 << j)) != 0) {
@@ -1138,7 +1220,7 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
 
   private void jj_rescan_token() {
     jj_rescan = true;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
       try {
         JJCalls p = jj_2_rtns[i];
 
@@ -1155,6 +1237,9 @@ public class QueryParser extends QueryParserBase implements QueryParserConstants
                 break;
               case 2:
                 jj_3_3();
+                break;
+              case 3:
+                jj_3_4();
                 break;
             }
           }

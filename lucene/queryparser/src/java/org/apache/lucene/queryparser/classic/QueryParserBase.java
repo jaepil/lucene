@@ -40,6 +40,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.IndexSearcher.TooManyClauses;
+import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.MultiTermQuery;
@@ -98,6 +99,7 @@ public abstract class QueryParserBase extends QueryBuilder
   Map<String, DateTools.Resolution> fieldToDateResolution = null;
 
   boolean autoGeneratePhraseQueries;
+  int defaultVectorTopK = 10;
 
   // So the generated QueryParser(CharStream) won't error out
   protected QueryParserBase() {
@@ -169,6 +171,31 @@ public abstract class QueryParserBase extends QueryBuilder
    */
   public void setAutoGeneratePhraseQueries(boolean value) {
     this.autoGeneratePhraseQueries = value;
+  }
+
+  /**
+   * Sets the number of nearest documents collected by vector literals such as {@code vector:[1, 2,
+   * 3]}.
+   *
+   * @param defaultVectorTopK the default vector top-k value (must be at least 1)
+   * @lucene.experimental
+   */
+  public void setDefaultVectorTopK(int defaultVectorTopK) {
+    if (defaultVectorTopK < 1) {
+      throw new IllegalArgumentException(
+          "defaultVectorTopK must be at least 1, got " + defaultVectorTopK);
+    }
+    this.defaultVectorTopK = defaultVectorTopK;
+  }
+
+  /**
+   * Returns the number of nearest documents collected by vector literals such as {@code vector:[1,
+   * 2, 3]}.
+   *
+   * @lucene.experimental
+   */
+  public int getDefaultVectorTopK() {
+    return defaultVectorTopK;
   }
 
   /** Get the minimal similarity for fuzzy queries. */
@@ -602,6 +629,61 @@ public abstract class QueryParserBase extends QueryBuilder
   }
 
   /**
+   * Factory method for generating a vector query from a vector literal.
+   *
+   * @param field Name of the vector field query will use.
+   * @param vectorLiteral Comma-separated vector elements without the surrounding brackets.
+   * @return Resulting {@link Query} object.
+   * @exception org.apache.lucene.queryparser.classic.ParseException throw in overridden method to
+   *     disallow or customize vector literals
+   * @lucene.experimental
+   */
+  protected Query getVectorQuery(String field, String vectorLiteral) throws ParseException {
+    float[] vector = parseVectorLiteral(vectorLiteral);
+    try {
+      return newVectorQuery(field, vector, defaultVectorTopK);
+    } catch (IllegalArgumentException e) {
+      ParseException parseException = new ParseException(e.getMessage());
+      parseException.initCause(e);
+      throw parseException;
+    }
+  }
+
+  /**
+   * Builds a new {@link KnnFloatVectorQuery} instance.
+   *
+   * @param field vector field
+   * @param vector query vector
+   * @param k number of nearest documents to collect
+   * @return new {@link KnnFloatVectorQuery} instance
+   * @lucene.experimental
+   */
+  protected Query newVectorQuery(String field, float[] vector, int k) {
+    return new KnnFloatVectorQuery(field, vector, k);
+  }
+
+  private float[] parseVectorLiteral(String vectorLiteral) throws ParseException {
+    String[] parts = vectorLiteral.split(",", -1);
+    float[] vector = new float[parts.length];
+    for (int i = 0; i < parts.length; i++) {
+      String part = discardEscapeChar(parts[i]).trim();
+      if (part.isEmpty()) {
+        throw new ParseException(
+            "Vector literal contains an empty element: [" + vectorLiteral + "]");
+      }
+      try {
+        vector[i] = Float.parseFloat(part);
+      } catch (NumberFormatException e) {
+        ParseException parseException =
+            new ParseException("Invalid vector element '" + part + "' in [" + vectorLiteral + "]");
+        parseException.initCause(e);
+        throw parseException;
+      }
+    }
+    return vector;
+  }
+
+  /**
    * Builds a new MatchAllDocsQuery instance
    *
    * @return new MatchAllDocsQuery instance
@@ -848,6 +930,10 @@ public abstract class QueryParserBase extends QueryBuilder
     }
     return getFieldQuery(
         qfield, discardEscapeChar(term.image.substring(1, term.image.length() - 1)), s);
+  }
+
+  Query handleVectorTerm(String qfield, List<String> chunks) throws ParseException {
+    return getVectorQuery(qfield, String.join(" ", chunks));
   }
 
   // extracted from the .jj grammar

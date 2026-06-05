@@ -315,6 +315,7 @@ Query Clause(String field) : {
 
 Query Term(String field) : {
   Token term, boost=null, fuzzySlop=null, goop1, goop2;
+  List<String> vectorChunks;
   boolean prefix = false;
   boolean wildcard = false;
   boolean fuzzy = false;
@@ -340,7 +341,9 @@ Query Term(String field) : {
     ]
     { q = handleBareTokenQuery(field, term, fuzzySlop, prefix, wildcard, fuzzy, regexp); }
 
-  | ( <RANGEIN_START> { startInc = true; } | <RANGEEX_START> )
+  | LOOKAHEAD(( <RANGEIN_START> | <RANGEEX_START> )
+      ( <RANGE_GOOP> | <RANGE_QUOTED> | <RANGE_TO> ) <RANGE_TO>)
+    ( <RANGEIN_START> { startInc = true; } | <RANGEEX_START> )
     ( goop1=<RANGE_GOOP> | goop1=<RANGE_QUOTED> | goop1=<RANGE_TO> )
     ( <RANGE_TO> )
     ( goop2=<RANGE_GOOP> | goop2=<RANGE_QUOTED> | goop2=<RANGE_TO> )
@@ -362,6 +365,10 @@ Query Term(String field) : {
       q = getRangeQuery(field, startOpen ? null : discardEscapeChar(goop1.image), endOpen ? null : discardEscapeChar(goop2.image), startInc, endInc);
     }
 
+  | vectorChunks=VectorLiteral()
+    [ <CARAT> boost=<NUMBER> ]
+    { q = handleVectorTerm(field, vectorChunks); }
+
   | term=<QUOTED>
     [
       <CARAT> boost=<NUMBER> [ fuzzySlop=<FUZZY_SLOP> { fuzzy=true; } ]
@@ -370,6 +377,20 @@ Query Term(String field) : {
     { q = handleQuotedTerm(field, term, fuzzySlop); }
   )
   { return handleBoost(q, boost); }
+}
+
+List<String> VectorLiteral() : {
+  List<String> chunks = new ArrayList<String>();
+  Token chunk;
+}
+{
+  <RANGEIN_START>
+  chunk=<RANGE_GOOP> { chunks.add(chunk.image); }
+  (
+    chunk=<RANGE_GOOP> { chunks.add(chunk.image); }
+  )*
+  <RANGEIN_END>
+  { return chunks; }
 }
 
 /** Returns the first query if splitOnWhitespace=true or otherwise the entire produced query */
